@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: btc-dashboard
+    runtime: python
+    repo: https://github.com/YOUR_USERNAME/btc-dashboard
+    plan: free
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    autoDeploy: true

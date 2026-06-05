@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>₿ BTC COMBINED DASHBOARD — v8.3</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #00ff9d;
+            text-align: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(0,0,0,0.8);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 0 20px rgba(0,255,157,0.3);
+        }
+        h1 { color: #ffd700; font-size: 2.5em; }
+        .btc-price {
+            font-size: 3em;
+            font-weight: bold;
+            color: #ffd700;
+            margin: 20px 0;
+        }
+        .live-badge {
+            background: #ff0000;
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            50% { opacity: 0.5; }
+        }
+        .info {
+            background: #0f3460;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .loading {
+            color: #ffd700;
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>₿ BTC COMBINED DASHBOARD — v8.3</h1>
+        <div class="live-badge">⚡ LIVE MODE: 1-MINUTE DATA UPDATES ⚡</div>
+        
+        <div id="data-container">
+            <h2>LIVE DATA</h2>
+            <div class="info">
+                <p><strong>Last Update:</strong> <span id="last-update">{{ data.last_update or 'Waiting for data...' }}</span></p>
+                <div class="btc-price">
+                    BTC/USDT: $<span id="btc-price">{{ '%.2f'|format(data.btc_price) if data.btc_price else 'Loading...' }}</span>
+                </div>
+                <p><strong>Updates:</strong> <span id="updates">{{ data.updates }}</span></p>
+            </div>
+            
+            {% if not data.btc_price %}
+            <div class="loading">
+                <p>🔄 Loading data...</p>
+                <p>First data fetch in progress. Please wait 30 seconds...</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        // Auto-refresh data every 30 seconds
+        function fetchData() {
+            fetch('/api/data')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('last-update').innerText = data.last_update || 'Waiting...';
+                    document.getElementById('updates').innerText = data.updates;
+                    
+                    if (data.btc_price) {
+                        document.getElementById('btc-price').innerText = data.btc_price.toFixed(2);
+                    }
+                    
+                    // Update page title with current price
+                    if (data.btc_price) {
+                        document.title = `₿ BTC $${data.btc_price.toFixed(2)} | Dashboard`;
+                    }
+                })
+                .catch(error => console.error('Error fetching data:', error));
+        }
+        
+        // Fetch every 30 seconds
+        setInterval(fetchData, 30000);
+    </script>
+</body>
+</html>

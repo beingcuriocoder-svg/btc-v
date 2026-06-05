@@ -1081,14 +1081,21 @@ def scheduled_update():
 
 # Run initial update on startup
 @app.before_first_request
+# ═══════════════════════════════════════════════
+# SECTION 11 — INITIALIZATION FOR FLASK 2.3+
+# ═══════════════════════════════════════════════
+
 def initialize():
-    """Run initial data fetch before first request"""
+    """Run initial data fetch on startup (compatible with Flask 2.3+)"""
     import threading
     def delayed_init():
         time.sleep(2)
         with app.app_context():
             process_dashboard_data()
     threading.Thread(target=delayed_init).start()
+
+# Call initialization
+initialize()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

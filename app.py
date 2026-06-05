@@ -17,7 +17,7 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Configuration for scheduler - UPDATED to run every minute
+# Configuration for scheduler
 class Config:
     SCHEDULER_API_ENABLED = True
     SCHEDULER_TIMEZONE = "UTC"
@@ -40,7 +40,7 @@ data_lock = Lock()
 
 VERSION = "BTC Dashboard v8.3 (Live - 1 Minute Updates)"
 
-# HTML Template with 10-second auto-refresh for real-time feel
+# HTML Template with 10-second auto-refresh
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
@@ -99,12 +99,19 @@ HTML_TEMPLATE = """
             gap: 10px;
         }
         
-        .update-badge {
+        .live-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
             background: #ff3366;
-            padding: 3px 8px;
-            border-radius: 5px;
-            font-size: 0.8em;
+            border-radius: 50%;
             animation: pulse 1s infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
         
         .price-section {
@@ -139,11 +146,6 @@ HTML_TEMPLATE = """
             border-radius: 15px;
             padding: 20px;
             border-left: 4px solid #00ff9d;
-            transition: transform 0.3s;
-        }
-        
-        .card:hover {
-            transform: translateY(-2px);
         }
         
         .card h3 {
@@ -170,12 +172,10 @@ HTML_TEMPLATE = """
         
         .bullish {
             color: #00ff9d;
-            text-shadow: 0 0 5px rgba(0, 255, 157, 0.5);
         }
         
         .bearish {
             color: #ff3366;
-            text-shadow: 0 0 5px rgba(255, 51, 102, 0.5);
         }
         
         .neutral {
@@ -225,34 +225,6 @@ HTML_TEMPLATE = """
             color: #888;
         }
         
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        
-        @keyframes glow {
-            0%, 100% { box-shadow: 0 0 5px #00ff9d; }
-            50% { box-shadow: 0 0 20px #00ff9d; }
-        }
-        
-        .live-indicator {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            background: #ff3366;
-            border-radius: 50%;
-            animation: pulse 1s infinite;
-            margin-right: 10px;
-        }
-        
-        .countdown {
-            font-family: monospace;
-            font-size: 0.9em;
-            background: rgba(0,0,0,0.5);
-            padding: 3px 8px;
-            border-radius: 5px;
-        }
-        
         @media (max-width: 768px) {
             .grid-2 {
                 grid-template-columns: 1fr;
@@ -265,33 +237,6 @@ HTML_TEMPLATE = """
             }
         }
     </style>
-    <script>
-        // Client-side countdown timer
-        let secondsLeft = 10;
-        function updateCountdown() {
-            const countdownEl = document.getElementById('countdown');
-            if (countdownEl) {
-                countdownEl.textContent = `Next refresh in: ${secondsLeft}s`;
-                secondsLeft--;
-                if (secondsLeft < 0) secondsLeft = 10;
-            }
-        }
-        setInterval(updateCountdown, 1000);
-        
-        // Auto-refresh data without full page reload (optional)
-        function fetchNewData() {
-            fetch('/api/latest')
-                .then(response => response.json())
-                .then(data => {
-                    if (data && data.price) {
-                        document.getElementById('btc-price').innerHTML = `$${data.price.toLocaleString()}`;
-                    }
-                })
-                .catch(err => console.log('Error fetching data:', err));
-        }
-        // Uncomment below for AJAX updates instead of full refresh
-        // setInterval(fetchNewData, 10000);
-    </script>
 </head>
 <body>
     <div class="container">
@@ -306,16 +251,15 @@ HTML_TEMPLATE = """
                 </div>
                 <div>Last Update: {{ data.last_update or 'Waiting for data...' }}</div>
                 <div>Updates: {{ data.update_count or 0 }}</div>
-                <div class="countdown" id="countdown">Next refresh in: 10s</div>
             </div>
             
-            {% if data %}
+            {% if data and data.price %}
             <div class="price-section">
-                <div class="btc-price" id="btc-price">${{ '{:,.0f}'.format(data.price) if data.price else 'N/A' }}</div>
+                <div class="btc-price">${{ '{:,.0f}'.format(data.price) }}</div>
                 <div class="direction">
                     DIRECTION: 
                     <span class="{% if 'LONG' in data.direction %}bullish{% elif 'SHORT' in data.direction %}bearish{% else %}neutral{% endif %}">
-                        {{ data.direction or 'N/A' }}
+                        {{ data.direction }}
                     </span>
                     {% if data.confidence %} | Confidence: {{ data.confidence }}% {% endif %}
                     {% if data.grade %} | Grade: <span class="badge badge-{{ data.grade }}">{{ data.grade }}</span> {% endif %}
@@ -327,33 +271,27 @@ HTML_TEMPLATE = """
                     <h3>📊 MODEL 1: STRUCTURE ANALYSIS</h3>
                     <div class="metric-row">
                         <span class="metric-label">Trend:</span>
-                        <span class="metric-value {% if 'BULL' in data.trend_label %}bullish{% elif 'BEAR' in data.trend_label %}bearish{% endif %}">
-                            {{ data.trend_label or 'N/A' }}
-                        </span>
+                        <span class="metric-value">{{ data.trend_label }}</span>
                     </div>
                     <div class="metric-row">
                         <span class="metric-label">CVD Flow:</span>
-                        <span class="metric-value {% if 'BUYING' in data.cvd_label %}bullish{% elif 'SELLING' in data.cvd_label %}bearish{% endif %}">
-                            {{ data.cvd_label or 'N/A' }}
-                        </span>
+                        <span class="metric-value">{{ data.cvd_label }}</span>
                     </div>
                     <div class="metric-row">
                         <span class="metric-label">Open Interest:</span>
-                        <span class="metric-value">{{ data.oi_label or 'N/A' }}</span>
+                        <span class="metric-value">{{ data.oi_label }}</span>
                     </div>
                     <div class="metric-row">
                         <span class="metric-label">Spot Flow:</span>
-                        <span class="metric-value">{{ data.spot_label or 'N/A' }}</span>
+                        <span class="metric-value">{{ data.spot_label }}</span>
                     </div>
                     <div class="metric-row">
                         <span class="metric-label">Smart Money:</span>
-                        <span class="metric-value">{{ data.smart_label or 'N/A' }}</span>
+                        <span class="metric-value">{{ data.smart_label }}</span>
                     </div>
                     <div class="metric-row">
                         <span class="metric-label">M1 Total Score:</span>
-                        <span class="metric-value {% if data.total_score > 0 %}bullish{% elif data.total_score < 0 %}bearish{% endif %}">
-                            {{ data.total_score or 'N/A' }}/100
-                        </span>
+                        <span class="metric-value">{{ data.total_score }}/100</span>
                     </div>
                 </div>
                 
@@ -361,19 +299,19 @@ HTML_TEMPLATE = """
                     <h3>⚡ MODEL 2: EXPANSION ENERGY</h3>
                     <div class="metric-row">
                         <span class="metric-label">Expansion Score:</span>
-                        <span class="metric-value">{{ data.expansion_score or 'N/A' }}/100</span>
+                        <span class="metric-value">{{ data.expansion_score }}/100</span>
                     </div>
                     <div class="metric-row">
                         <span class="metric-label">Classification:</span>
-                        <span class="metric-value">{{ data.classification or 'N/A' }}</span>
+                        <span class="metric-value">{{ data.classification }}</span>
                     </div>
                     <div class="metric-row">
                         <span class="metric-label">Expected Move:</span>
-                        <span class="metric-value">${{ '{:,.0f}'.format(data.expected_move_low) if data.expected_move_low else 'N/A' }} - ${{ '{:,.0f}'.format(data.expected_move_high) if data.expected_move_high else 'N/A' }}</span>
+                        <span class="metric-value">${{ '{:,.0f}'.format(data.expected_move_low) }} - ${{ '{:,.0f}'.format(data.expected_move_high) }}</span>
                     </div>
                     <div class="metric-row">
                         <span class="metric-label">Data Quality:</span>
-                        <span class="metric-value">{{ data.data_quality or 'N/A' }}</span>
+                        <span class="metric-value">{{ data.data_quality }}</span>
                     </div>
                 </div>
             </div>
@@ -383,19 +321,19 @@ HTML_TEMPLATE = """
                     <h3>🎯 STRUCTURE vs EXPANSION</h3>
                     <div class="metric-row">
                         <span class="metric-label">Stable Bull Trigger:</span>
-                        <span class="metric-value">${{ '{:,.0f}'.format(data.stable_bull) if data.stable_bull else 'N/A' }}</span>
+                        <span class="metric-value">${{ '{:,.0f}'.format(data.stable_bull) }}</span>
                     </div>
                     <div class="metric-row">
                         <span class="metric-label">Stable Bear Trigger:</span>
-                        <span class="metric-value">${{ '{:,.0f}'.format(data.stable_bear) if data.stable_bear else 'N/A' }}</span>
+                        <span class="metric-value">${{ '{:,.0f}'.format(data.stable_bear) }}</span>
                     </div>
                     <div class="metric-row">
                         <span class="metric-label">Bull Power Ratio:</span>
-                        <span class="metric-value">{{ data.bull_power_ratio or 'N/A' }}</span>
+                        <span class="metric-value">{{ data.bull_power_ratio }}</span>
                     </div>
                     <div class="metric-row">
                         <span class="metric-label">Bear Power Ratio:</span>
-                        <span class="metric-value">{{ data.bear_power_ratio or 'N/A' }}</span>
+                        <span class="metric-value">{{ data.bear_power_ratio }}</span>
                     </div>
                 </div>
                 
@@ -403,17 +341,15 @@ HTML_TEMPLATE = """
                     <h3>🔔 MODEL 3: DECISION ENGINE</h3>
                     <div class="metric-row">
                         <span class="metric-label">Decision Score:</span>
-                        <span class="metric-value">{{ data.decision_score or 'N/A' }}/115</span>
+                        <span class="metric-value">{{ data.decision_score }}/115</span>
                     </div>
                     <div class="metric-row">
                         <span class="metric-label">Trade Status:</span>
-                        <span class="metric-value {% if 'ACTIVE' in data.trade_status %}bullish{% endif %}">
-                            {{ data.trade_status or 'N/A' }}
-                        </span>
+                        <span class="metric-value">{{ data.trade_status }}</span>
                     </div>
                     <div class="metric-row">
                         <span class="metric-label">Confirmation:</span>
-                        <span class="metric-value">{{ data.confirmation or 'N/A' }}</span>
+                        <span class="metric-value">{{ data.confirmation }}</span>
                     </div>
                 </div>
             </div>
@@ -421,10 +357,10 @@ HTML_TEMPLATE = """
             <div class="setup-box">
                 <div>🎯 SETUP TYPE</div>
                 <div class="setup-type {% if 'LONG' in data.setup_type %}bullish{% elif 'SHORT' in data.setup_type %}bearish{% endif %}">
-                    {{ data.setup_type or 'N/A' }}
+                    {{ data.setup_type }}
                 </div>
                 <div class="action">
-                    {{ data.action or 'N/A' }}
+                    {{ data.action }}
                 </div>
             </div>
             
@@ -434,7 +370,7 @@ HTML_TEMPLATE = """
             {% else %}
             <div class="price-section">
                 <div class="btc-price">Loading data...</div>
-                <div>First data fetch in progress. Please wait...</div>
+                <div>First data fetch in progress. Please wait 30 seconds...</div>
             </div>
             {% endif %}
         </div>
@@ -589,7 +525,6 @@ def save_to_csv(log_data, log_file="btc_dashboard_log.csv"):
         current_headers = list(log_data.keys())
         file_exists = os.path.exists(log_file) and os.path.getsize(log_file) > 0
         
-        # Schema protection
         if file_exists:
             with open(log_file, "r", newline="") as f:
                 reader = csv.reader(f)
@@ -643,7 +578,6 @@ def process_dashboard_data():
     elif not binance_available or not spot_available:
         data_quality = "PARTIAL"
     
-    # Process all indicators
     latest = gate_df[-1]
     len_12 = min(12, len(gate_df))
     price_change = latest['price'] - gate_df[-len_12]['price'] if len_12 > 0 else 0
@@ -654,12 +588,8 @@ def process_dashboard_data():
         bn_fr_latest = float(bn_fr[-1]['fundingRate']) * 100
         smart_gap = abs(bn_latest_top - latest['top_lsr'])
         agg_smart_lsr = 1.0 if smart_gap > 1.0 else (bn_latest_top * 0.65) + (latest['top_lsr'] * 0.35)
-        agg_fr = (bn_fr_latest * 0.65) + (gate_fr_latest * 0.35)
     else:
-        bn_latest_top = 1.0
         agg_smart_lsr = latest['top_lsr']
-        smart_gap = 0
-        agg_fr = gate_fr_latest
     
     # Model 1 calculations
     len_24 = min(24, len(gate_df))
@@ -742,8 +672,7 @@ def process_dashboard_data():
         c5_label, c5_score = "NEUTRAL", 0
     
     total_score = c1_score + c2_score + c3_score + c4_score + c5_score
-    MAX_SCORE = 100
-    confidence = round(abs(total_score) / MAX_SCORE * 100)
+    confidence = round(abs(total_score) / 100 * 100)
     confidence = min(confidence, 100)
     
     if total_score >= 70:
@@ -779,8 +708,7 @@ def process_dashboard_data():
     
     atr_usd = sum(intra_hour_ranges) / len(intra_hour_ranges) if intra_hour_ranges else 500.0
     
-    current_hour = gate_df[-1]
-    current_range = current_hour.get('high', current_hour['price']) - current_hour.get('low', current_hour['price'])
+    current_range = latest.get('high', latest['price']) - latest.get('low', latest['price'])
     vm = current_range / atr_usd if atr_usd > 0 else 1.0
     
     trend_gap_pct = (abs(ma24 - ma72) / ma72 * 100) if ma72 > 0 else 0
@@ -964,7 +892,6 @@ def process_dashboard_data():
     else:
         trade_status, confirmation_status, action = "INACTIVE", "FAILED", "SIT ON HANDS"
     
-    # Prepare output data
     output_data = {
         'price': latest['price'],
         'direction': direction,
@@ -1024,7 +951,6 @@ def process_dashboard_data():
     }
     save_to_csv(log_entry)
     
-    # Update global data with lock
     with data_lock:
         latest_dashboard_data['raw_data'] = output_data
         latest_dashboard_data['last_update'] = output_data['last_update']
@@ -1079,14 +1005,9 @@ def scheduled_update():
     with app.app_context():
         process_dashboard_data()
 
-# Run initial update on startup
-@app.before_first_request
-# ═══════════════════════════════════════════════
-# SECTION 11 — INITIALIZATION FOR FLASK 2.3+
-# ═══════════════════════════════════════════════
-
+# Initial data fetch on startup
 def initialize():
-    """Run initial data fetch on startup (compatible with Flask 2.3+)"""
+    """Run initial data fetch on startup"""
     import threading
     def delayed_init():
         time.sleep(2)
@@ -1094,7 +1015,6 @@ def initialize():
             process_dashboard_data()
     threading.Thread(target=delayed_init).start()
 
-# Call initialization
 initialize()
 
 if __name__ == '__main__':
